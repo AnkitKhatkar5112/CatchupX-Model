@@ -39,7 +39,12 @@ def generate_scene(concepts):#the input 'concept' should be the output of 'conce
     if "gravity" in concepts:
         scenes.append("Show an apple falling from a tree")
 
+    if "motion" in concepts or ("newton" in concepts and "law" in concepts):
+        scenes.append("Show an object at rest")
+        scenes.append("Apply a force to the object")
+        scenes.append("Object starts moving")
     return scenes
+
 
 
 if __name__ == "__main__":
@@ -51,4 +56,5 @@ if __name__ == "__main__":
     print("Scenes:")
     for scene in result:
         print("-",scene)
+
 

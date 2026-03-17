@@ -37,6 +37,9 @@ def extract_concepts(text):
         if token.pos_ in ["NOUN", "PROPN"]:
             concepts.append(token.text.lower())
 
+    if "law" in concepts and "newton" in concepts:
+        concepts.append("motion")
+    
     return concepts
 
 if __name__ == "__main__":

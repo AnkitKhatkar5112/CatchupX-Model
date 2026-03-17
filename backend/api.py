@@ -29,3 +29,15 @@ def generate_animation(topic: Topic):
         "scenes": scenes,
         "animation": animation_data
     }
+
+
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # sab allow (dev ke liye)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
