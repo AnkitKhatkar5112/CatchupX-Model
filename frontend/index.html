@@ -1,132 +1,442 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CatchupX Animation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Outfit', sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    #ui-container {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 24px 32px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      width: 340px;
+    }
+
+    h2 {
+      margin: 0 0 16px 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    #status {
+      margin-top: 16px;
+      font-size: 0.95rem;
+      color: #94a3b8;
+      height: 20px;
+      font-weight: 300;
+      transition: color 0.3s;
+    }
+
+    #labels-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .floating-label {
+      position: absolute;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #fca5a5;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(252, 165, 165, 0.3);
+      backdrop-filter: blur(4px);
+      transform: translate(-50%, -100%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .floating-label.visible {
+      opacity: 1;
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>Enter Topic</h2>
-<input type="text" id="topic" value="Newton's Law of Motion">
-<button onclick="generate()">Generate</button>
+  <div id="ui-container">
+    <h2>Concept Visualizer</h2>
+    <div class="input-group">
+      <input type="text" id="topic" value="Newton's Law of Motion">
+    </div>
+    <button onclick="generate()" id="gen-btn">Simulate</button>
+    <div id="status">Ready to simulate</div>
+  </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <div id="labels-container">
+    <div id="force-label" class="floating-label">Force Applied (F)</div>
+  </div>
 
-<script>
-let scene, camera, renderer, sphere, arrow;
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-let animationData = [];
+  <script>
+    let scene, camera, renderer, sphere, arrow, particles;
+    let animationData = [];
+    let isAnimating = false;
 
-// ✅ INIT 3D
-function init() {
-    scene = new THREE.Scene();
+    function setStatus(text, color = "#94a3b8") {
+      const statusEl = document.getElementById("status");
+      statusEl.innerText = text;
+      statusEl.style.color = color;
+    }
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.position.z = 5;
+    function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a);
+      scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
 
-    renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 4, 12);
+      camera.lookAt(0, 0, 0);
 
-    const geometry = new THREE.SphereGeometry();
-    const material = new THREE.MeshBasicMaterial();
-    sphere = new THREE.Mesh(geometry, material);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
 
-    scene.add(sphere);
+      // Modern lighting approach
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
 
-    // arrow (force)
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      dirLight.position.set(10, 15, 10);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      scene.add(dirLight);
 
-const dir = new THREE.Vector3(1, 0, 0); // right direction
-const origin = new THREE.Vector3(0, 0, 0);
-const length = 2;
+      // Aesthetic back-light
+      const blueLight = new THREE.PointLight(0x3b82f6, 1.5, 30);
+      blueLight.position.set(-5, 6, -5);
+      scene.add(blueLight);
 
-arrow = new THREE.ArrowHelper(dir, origin, length);
+      // Endless environment floor
+      const planeGeom = new THREE.PlaneGeometry(300, 300);
+      const planeMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.8,
+        metalness: 0.2
+      });
+      const plane = new THREE.Mesh(planeGeom, planeMat);
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.y = -1;
+      plane.receiveShadow = true;
+      scene.add(plane);
 
-scene.add(arrow);
+      // Minimal grid to visualize space
+      const gridHelper = new THREE.GridHelper(300, 150, 0x334155, 0x1e293b);
+      gridHelper.position.y = -0.99;
+      scene.add(gridHelper);
 
-// initially invisible
-arrow.visible = false;
-}
+      // Primary object
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x3b82f6,
+        roughness: 0.2,
+        metalness: 0.6,
+        emissive: 0x1d4ed8,
+        emissiveIntensity: 0.3
+      });
+      sphere = new THREE.Mesh(geometry, material);
+      sphere.castShadow = true;
+      sphere.receiveShadow = true;
+      scene.add(sphere);
 
-// ✅ RENDER LOOP
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-}
+      // Overlay wireframe so rotations are readable
+      const wireframeGeom = new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.01, 2));
+      const wireframeMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.4 });
+      const wireframe = new THREE.LineSegments(wireframeGeom, wireframeMat);
+      sphere.add(wireframe);
 
-// ✅ BACKEND CALL
-async function generate() {
-  const text = document.getElementById("topic").value;
+      // Vector representations
+      const dir = new THREE.Vector3(1, 0, 0);
+      const origin = new THREE.Vector3(0, 0, 0);
+      const length = 2.8;
+      const hex = 0xfca5a5; // Accent color
+      const headLength = 0.8;
+      const headWidth = 0.5;
+      arrow = new THREE.ArrowHelper(dir, origin, length, hex, headLength, headWidth);
 
-  const response = await fetch("http://127.0.0.1:8000/generate-animation", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ text })
-  });
+      // Bulk up arrow line
+      if (arrow.line && arrow.line.material) {
+        arrow.line.material.linewidth = 3;
+      }
+      scene.add(arrow);
+      arrow.visible = false;
 
-  const data = await response.json();
+      // Atmospheric "quantum/space" particles
+      const particlesGeom = new THREE.BufferGeometry();
+      const particlesCount = 800;
+      const posArray = new Float32Array(particlesCount * 3);
+      for (let i = 0; i < particlesCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 80;
+        posArray[i + 1] = Math.random() * 30;
+        posArray[i + 2] = (Math.random() - 0.5) * 80;
+      }
+      particlesGeom.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const particlesMat = new THREE.PointsMaterial({
+        size: 0.08,
+        color: 0x94a3b8,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      particles = new THREE.Points(particlesGeom, particlesMat);
+      scene.add(particles);
 
-  console.log(data);
+      window.addEventListener('resize', onWindowResize, false);
+    }
 
-  animationData = data.animation;
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-  runAnimation();
-}
+    function updateHTMLOverlays() {
+      if (arrow.visible) {
+        const forceLabel = document.getElementById("force-label");
+        // Coordinate projection map from 3D object to 2D UI screen
+        let labelPos = new THREE.Vector3(sphere.position.x, sphere.position.y + 1.8, sphere.position.z);
+        labelPos.project(camera);
 
-// ✅ PLAY ANIMATION
-function runAnimation() {
-    let step = 0;
+        let x = (labelPos.x * .5 + .5) * window.innerWidth;
+        let y = (labelPos.y * -.5 + .5) * window.innerHeight;
 
-    function play() {
-        if (step >= animationData.length) return;
+        // Hide if behind camera rendering range
+        if (labelPos.z < 1) {
+          forceLabel.style.left = `${x}px`;
+          forceLabel.style.top = `${y}px`;
+          forceLabel.classList.add("visible");
+        } else {
+          forceLabel.classList.remove("visible");
+        }
+      } else {
+        document.getElementById("force-label").classList.remove("visible");
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (particles) {
+        particles.rotation.y += 0.0004; // Atmospheric slow rotation
+      }
+
+      // Dynamic, organic camera tracking instead of static framing
+      let targetCameraX = sphere.position.x * 0.85;
+      camera.position.x += (targetCameraX - camera.position.x) * 0.04;
+
+      updateHTMLOverlays();
+
+      renderer.render(scene, camera);
+    }
+
+    async function generate() {
+      if (isAnimating) return;
+      isAnimating = true;
+
+      const text = document.getElementById("topic").value;
+      const btn = document.getElementById("gen-btn");
+
+      btn.innerText = "Simulating...";
+      btn.style.opacity = "0.7";
+      setStatus("Connecting to AI Engine...", "#60a5fa");
+
+      // Reset physics state
+      sphere.position.set(0, 0, 0);
+      sphere.rotation.set(0, 0, 0);
+      camera.position.set(0, 4, 12);
+      arrow.visible = false;
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/generate-animation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) throw new Error("Server error");
+
+        const data = await response.json();
+        console.log("Animation Data:", data);
+        animationData = data.animation || [];
+
+        setStatus("Simulation Data Received. Starting...", "#34d399");
+        setTimeout(runAnimation, 600);
+      } catch (e) {
+        console.error(e);
+        setStatus("Failed to connect to backend", "#f87171");
+        isAnimating = false;
+        btn.innerText = "Simulate";
+        btn.style.opacity = "1";
+      }
+    }
+
+    function runAnimation() {
+      let step = 0;
+
+      function playNext() {
+        if (step >= animationData.length) {
+          setStatus("Simulation Complete", "#a78bfa");
+          isAnimating = false;
+          document.getElementById("gen-btn").innerText = "Simulate";
+          document.getElementById("gen-btn").style.opacity = "1";
+          return;
+        }
 
         const action = animationData[step];
 
-        // 👉 FORCE SHOW
         if (action.action === "show_force") {
-            arrow.visible = true;
+          arrow.position.copy(sphere.position);
+          arrow.visible = true;
+          setStatus("Applying Force (F = ma)", "#fca5a5");
 
-            step++;
-            setTimeout(play, 1000);
-            return;
+          step++;
+          setTimeout(playNext, 1200);
+          return;
         }
 
-        // 👉 MOVE WITH PHYSICS
         if (action.action === "move") {
-            let targetX = action.to[0];
+          let targetX = action.to[0];
+          let startX = sphere.position.x;
+          let distance = targetX - startX;
+          let duration = 2400; // Time based animation (2.4s) for smooth delivery
+          let startTime = performance.now();
 
-            let velocity = 0;
-            let acceleration = 0.02;
+          setStatus("Accelerating...", "#60a5fa");
 
-            function smoothMove() {
-                if (sphere.position.x >= targetX) {
-                    step++;
-                    setTimeout(play, 500);
-                    return;
-                }
+          function moveFrame(currentTime) {
+            let elapsed = currentTime - startTime;
+            let t = elapsed / duration;
 
-                velocity += acceleration;
-                sphere.position.x += velocity;
+            if (t >= 1) {
+              sphere.position.x = targetX;
+              arrow.visible = false;
 
-                requestAnimationFrame(smoothMove);
+              step++;
+              setTimeout(playNext, 800);
+              return;
             }
 
-            smoothMove();
-            return;
+            // Sine ease in out map
+            let easeT = -(Math.cos(Math.PI * t) - 1) / 2;
+            let newX = startX + distance * easeT;
+            let deltaX = newX - sphere.position.x;
+
+            sphere.position.x = newX;
+            sphere.rotation.z -= deltaX * 1.5; // Visible Object Rotation
+
+            if (t > 0.5 && arrow.visible) {
+              arrow.visible = false;
+              setStatus("Coasting under inertia...", "#9ca3af");
+            }
+
+            if (arrow.visible) {
+              arrow.position.copy(sphere.position);
+            }
+
+            requestAnimationFrame(moveFrame);
+          }
+
+          requestAnimationFrame(moveFrame);
+          return;
         }
 
         step++;
-        play();
+        playNext();
+      }
+
+      playNext();
     }
 
-    play();
-}
-
-// START
-init();
-animate();
-</script>
-
+    init();
+    animate();
+  </script>
 </body>
+
 </html>
